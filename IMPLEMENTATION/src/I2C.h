@@ -42,7 +42,8 @@ public:
 	void write_byte(uint8_t address,uint8_t mem,uint8_t data);
 	void write_bytes(uint8_t address,uint8_t mem,uint8_t *data,uint16_t len);
 	void write_memp(uint8_t address,uint8_t mem);
-
+	uint8_t BCD_to_decimal(uint8_t val);
+	uint8_t decimal_to_BCD(uint8_t val);
 	~I2C_();
 };
 
