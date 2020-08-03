@@ -25,24 +25,36 @@ uint8_t buffer[BUFFER_SIZE];
 
 int test = 0;
 
+int seconds = 0;
+int minutes = 0;
+int hours = 0;
+
 void delay_ms(uint16_t ms){
 	tick_ms = 0;
 	while(tick_ms < ms){}
 }
 
+uint8_t BCD_to_decimal(uint8_t val){
+	return((val /16 * 10) + (val %16));
+}
+
+uint8_t decimal_to_BCD(uint8_t val){
+	return((val /10 * 16) + (val %10));
+}
+
 void read(uint8_t address,uint8_t len){
 	uint32_t temp = 0;
-	//ENABLE DMA RCC
 	RCC->AHBENR |= RCC_AHBENR_DMA1EN;
 	//ENABLE I2C DMA
 	I2C1->CR2 |= I2C_CR2_DMAEN;
 	//ENABLE ACKS
 	I2C1->CR1 |= I2C_CR1_ACK;
+	I2C1->CR2 |= I2C_CR2_LAST;
 	//CONFIGURE DMA
 	DMA1_Channel7 ->CMAR = (uint32_t) buffer;
 	DMA1_Channel7 -> CPAR = (uint32_t) &I2C1->DR;
 	DMA1_Channel7->CNDTR = len;
-	DMA1_Channel7 ->CCR |= DMA_CCR7_TCIE | DMA_CCR7_MINC | DMA_CCR7_EN;
+	DMA1_Channel7 ->CCR |= DMA_CCR7_TCIE | DMA_CCR7_MINC | DMA_CCR7_EN |DMA_CCR7_CIRC;
 	//SEND START BIT
 	I2C1->CR1 |= I2C_CR1_START;
 	//WAIT FOR START BIT TO BE SENT
@@ -54,8 +66,12 @@ void read(uint8_t address,uint8_t len){
 	temp = I2C1->SR2;
 	//WAIT UNTIL DMA TRANFER IS COMPLETE
 	while((DMA1->ISR & DMA_ISR_TCIF7) == 0){}
+	//CLEAR TRANSFER COMPLETE FLAG
+	DMA1->IFCR |= DMA_IFCR_CTCIF7;
 	//SEND STOP BIT
 	I2C1->CR1 |= I2C_CR1_STOP;
+
+
 
 }
 
@@ -117,10 +133,17 @@ extern "C" void TIM1_UP_IRQHandler(void){
 
 int main(void)
 {
+
 	//ENABLE I2C RCC
+
+	RCC->APB1ENR &= ~RCC_APB1ENR_I2C1EN;
+	I2C1->CR2 = 0x00;
+	I2C1->CR1 = 0x00;
 	RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
 	//ENABLE GPIO RCC
 	RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
+	//ENABLE DMA RCC
+
 
 	//SET PERIPHERAL CLOCK REQUENCY FOR I2C
 	I2C1->CR2 |= 36;
@@ -156,14 +179,18 @@ int main(void)
 	//(0xD0,0X00);
 	//delay_ms(1);
 	//ENABLE ACKS
-
-
-
-	test = 4;
+	//set_pointer(0xD0,0X00);
+	//read(0xD0,4);
 
 	while(1){
+
 		set_pointer(0xD0,0X00);
 		read(0xD0,4);
-		delay_ms(100);
+		seconds = BCD_to_decimal(buffer[0]);
+		minutes = BCD_to_decimal(buffer[1]);
+		hours = BCD_to_decimal(buffer[2]);
+		test+=1;
+
+
 	}
 }
